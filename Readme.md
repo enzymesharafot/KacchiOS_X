@@ -101,10 +101,10 @@ kacchiOS/
 
 ### Recommended Reading
 
+- [XINU OS](https://xinu.cs.purdue.edu/) - Educational OS similar to kacchiOS
 - [OSDev Wiki](https://wiki.osdev.org/) - Comprehensive OS development guide
 - [The Little OS Book](https://littleosbook.github.io/) - Practical OS development
 - [Operating Systems: Three Easy Pieces](https://pages.cs.wisc.edu/~remzi/OSTEP/) - OS concepts textbook
-- [XINU OS](https://xinu.cs.purdue.edu/) - Educational OS similar to kacchiOS
 
 ### Related Topics
 
@@ -135,6 +135,6 @@ kacchiOS was created as an educational tool for teaching operating system concep
 
 ## 🙏 Acknowledgments
 
-- Inspired by XINU OS and Minix
+- Inspired by XINU OS
 - Built with guidance from OSDev community
 - Thanks to all students who have contributed
