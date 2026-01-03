@@ -4,11 +4,11 @@ LD = ld
 AS = as
 
 CFLAGS = -m32 -ffreestanding -O2 -Wall -Wextra -nostdinc \
-         -fno-builtin -fno-stack-protector -I.
+         -fno-builtin -fno-stack-protector -I. -Isrc
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-OBJS = boot.o kernel.o serial.o string.o
+OBJS = boot.o kernel.o serial.o string.o src/memory.o src/process.o src/scheduler.o
 
 all: kernel.elf
 
@@ -33,6 +33,6 @@ debug: kernel.elf
 	@echo "In another terminal run: gdb -ex 'target remote localhost:1234' -ex 'symbol-file kernel.elf'"
 
 clean:
-	rm -f *.o kernel.elf
+	rm -f *.o src/*.o kernel.elf
 
 .PHONY: all run run-vga debug clean

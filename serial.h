@@ -8,5 +8,7 @@ void serial_init(void);
 void serial_putc(char c);
 void serial_puts(const char* str);
 char serial_getc(void);
+void serial_put_uint(uint32_t n);
+void serial_put_hex(uint32_t n);
 
 #endif

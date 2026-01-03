@@ -58,3 +58,33 @@ char serial_getc(void) {
     while (!serial_received());
     return inb(COM1);
 }
+
+void serial_put_uint(uint32_t n) {
+    char buf[12];  /* Max 10 digits + sign + null */
+    int i = 0;
+    
+    if (n == 0) {
+        serial_putc('0');
+        return;
+    }
+    
+    /* Convert to string (reverse order) */
+    while (n > 0) {
+        buf[i++] = '0' + (n % 10);
+        n /= 10;
+    }
+    
+    /* Print in correct order */
+    while (i > 0) {
+        serial_putc(buf[--i]);
+    }
+}
+
+void serial_put_hex(uint32_t n) {
+    const char hex[] = "0123456789ABCDEF";
+    serial_puts("0x");
+    
+    for (int i = 7; i >= 0; i--) {
+        serial_putc(hex[(n >> (i * 4)) & 0xF]);
+    }
+}
