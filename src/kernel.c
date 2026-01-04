@@ -147,7 +147,7 @@ void kmain(void) {
     
     /* Main loop - interactive shell */
     while (1) {
-        serial_puts("\nkacchiOS_x> ");
+        serial_puts("\nX_Kacchi> ");
         input_position = 0;
         
         /* Read input line */
