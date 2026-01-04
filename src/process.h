@@ -1,4 +1,4 @@
-/* process.h - Process Manager Interface (XINU Style) */
+/* process.h - Process Manager Interface*/
 #ifndef PROCESS_H
 #define PROCESS_H
 
@@ -16,7 +16,7 @@ typedef enum {
     PR_WAIT         /* Process is waiting for event */
 } proc_state_t;
 
-/* Process Control Block (PCB) - XINU Style */
+/* Process Control Block (PCB) */
 typedef struct {
     int32_t pid;           /* Process ID */
     proc_state_t state;    /* Current state */
@@ -35,25 +35,25 @@ typedef struct {
 extern pcb_t *currpid;
 
 /* Process manager functions */
-void proc_init(void);
-void proc_run(void);
-int32_t proc_create(void (*func)(void));
-void proc_exit(void);
-void proc_list(void);
+void process_manager_initialize(void);
+void process_scheduler_start(void);
+int32_t process_create(void (*func)(void));
+void process_terminate(void);
+void process_list_display(void);
 
 /* Scheduler functions */
-void resched(void);
-void yield(void);
-void aging_update(void);
+void scheduler_reschedule(void);
+void process_yield_cpu(void);
+void scheduler_update_aging(void);
 
 /* Sleep and wait functions */
-void sleep(int ticks);
-void proc_tick(void);
-void wait(int event);
-void wakeup(int event);
+void process_sleep(int tick_count);
+void process_timer_tick(void);
+void process_wait_event(int event_id);
+void process_wakeup_event(int event_id);
 
 /* Memory allocation (from memory.c) */
-void *mem_alloc(size_t size);
-void mem_free(void *ptr);
+void *memory_allocate(size_t size);
+void memory_deallocate(void *ptr);
 
 #endif

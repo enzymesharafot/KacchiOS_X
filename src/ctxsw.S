@@ -1,4 +1,4 @@
-/* ctxsw.S - Context switch for x86 (XINU Style) */
+/* ctxsw.S - Context switch for x86 */
 .text
 .globl ctxsw
 

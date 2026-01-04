@@ -1,4 +1,4 @@
-/* process.c - Process Manager Implementation (XINU Style) */
+/* process.c - Process Manager Implementation */
 #include "process.h"
 #include "serial.h"
 #include "memory.h"
@@ -45,14 +45,14 @@ static void serial_put_int(int32_t num) {
 /* Sleep & Wait Functions                             */
 /* -------------------------------------------------- */
 
-void sleep(int ticks) {
-    if (ticks <= 0 || currpid == NULL) return;
-    currpid->sleep_ticks = ticks;
+void process_sleep(int tick_count) {
+    if (tick_count <= 0 || currpid == NULL) return;
+    currpid->sleep_ticks = tick_count;
     currpid->state = PR_SLEEP;
-    resched();
+    scheduler_reschedule();
 }
 
-void proc_tick(void) {
+void process_timer_tick(void) {
     for (int i = 0; i < MAX_PROCS; i++) {
         if (proctab[i].state == PR_SLEEP) {
             proctab[i].sleep_ticks--;
@@ -63,16 +63,16 @@ void proc_tick(void) {
     }
 }
 
-void wait(int event) {
-    currpid->wait_event = event;
+void process_wait_event(int event_id) {
+    currpid->wait_event = event_id;
     currpid->state = PR_WAIT;
-    resched();
+    scheduler_reschedule();
 }
 
-void wakeup(int event) {
+void process_wakeup_event(int event_id) {
     for (int i = 0; i < MAX_PROCS; i++) {
         if (proctab[i].state == PR_WAIT &&
-            proctab[i].wait_event == event) {
+            proctab[i].wait_event == event_id) {
 
             proctab[i].wait_event = -1;
             proctab[i].state = PR_READY;
@@ -84,25 +84,25 @@ void wakeup(int event) {
 /* Process Manager Init                               */
 /* -------------------------------------------------- */
 
-void proc_run(void) {
+void process_scheduler_start(void) {
     /* Find first ready process (should be PID 0 - null_process) */
-    int next = -1;
+    int next_pid = -1;
     for (int i = 0; i < MAX_PROCS; i++) {
         if (proctab[i].state == PR_READY) {
-            next = i;
+            next_pid = i;
             break;
         }
     }
     
-    if (next == -1) {
+    if (next_pid == -1) {
         serial_puts("ERROR: No ready process to run!\n");
         while (1);
     }
     
     /* Set up initial process */
-    proctab[next].state = PR_CURRENT;
-    current_pid = next;
-    currpid = &proctab[next];
+    proctab[next_pid].state = PR_CURRENT;
+    current_pid = next_pid;
+    currpid = &proctab[next_pid];
     
     /* First dispatch (bootstrap) */
     first_dispatch = 0;
@@ -110,15 +110,15 @@ void proc_run(void) {
         "movl %0, %%esp \n"
         "jmp  *%1      \n"
         :
-        : "r"(proctab[next].esp),
-          "r"(proctab[next].entry)
+        : "r"(proctab[next_pid].esp),
+          "r"(proctab[next_pid].entry)
     );
     
     /* Should never reach here */
     while (1);
 }
 
-void proc_init(void) {
+void process_manager_initialize(void) {
     for (int i = 0; i < MAX_PROCS; i++) {
         proctab[i].pid = -1;
         proctab[i].state = PR_TERMINATED;
@@ -140,85 +140,85 @@ void proc_init(void) {
 /* Process Creation                                   */
 /* -------------------------------------------------- */
 
-int32_t proc_create(void (*func)(void)) {
-    int pid;
+int32_t process_create(void (*func)(void)) {
+    int available_pid;
 
-    for (pid = 0; pid < MAX_PROCS; pid++) {
-        if (proctab[pid].state == PR_TERMINATED)
+    for (available_pid = 0; available_pid < MAX_PROCS; available_pid++) {
+        if (proctab[available_pid].state == PR_TERMINATED)
             break;
     }
 
-    if (pid == MAX_PROCS)
+    if (available_pid == MAX_PROCS)
         return -1;
 
-    uint32_t *stack = mem_alloc(PROC_STACK_SIZE);
-    if (!stack) {
+    uint32_t *process_stack = memory_allocate(PROC_STACK_SIZE);
+    if (!process_stack) {
         serial_puts("Stack allocation failed.\n");
         return -1;
     }
 
-    uint32_t *sp = (uint32_t *)((uint32_t)stack + PROC_STACK_SIZE);
-    sp = (uint32_t *)((uint32_t)sp & ~0xF);   // align
+    uint32_t *stack_pointer = (uint32_t *)((uint32_t)process_stack + PROC_STACK_SIZE);
+    stack_pointer = (uint32_t *)((uint32_t)stack_pointer & ~0xF);   // align
 
-    *--sp = (uint32_t)proc_exit;  // return address
-    *--sp = (uint32_t)func;       // first EIP
+    *--stack_pointer = (uint32_t)process_terminate;  // return address
+    *--stack_pointer = (uint32_t)func;       // first EIP
 
-    proctab[pid].pid = pid;
-    proctab[pid].state = PR_READY;
-    proctab[pid].entry = func;
-    proctab[pid].stack_base = stack;
-    proctab[pid].esp = sp;
-    proctab[pid].mem = stack;
-    proctab[pid].memsz = PROC_STACK_SIZE;
-    proctab[pid].priority = 1;
-    proctab[pid].dyn_priority = 1;
+    proctab[available_pid].pid = available_pid;
+    proctab[available_pid].state = PR_READY;
+    proctab[available_pid].entry = func;
+    proctab[available_pid].stack_base = process_stack;
+    proctab[available_pid].esp = stack_pointer;
+    proctab[available_pid].mem = process_stack;
+    proctab[available_pid].memsz = PROC_STACK_SIZE;
+    proctab[available_pid].priority = 1;
+    proctab[available_pid].dyn_priority = 1;
 
     serial_puts("Process created with PID: ");
-    serial_put_int(pid);
+    serial_put_int(available_pid);
     serial_puts("\n");
 
-    return pid;
+    return available_pid;
 }
 
 /* -------------------------------------------------- */
 /* Scheduler Core                                     */
 /* -------------------------------------------------- */
 
-void resched(void) {
-    aging_update();
+void scheduler_reschedule(void) {
+    scheduler_update_aging();
 
-    int old = current_pid;
-    int next = -1;
-    int best_prio = -1;
+    int previous_pid = current_pid;
+    int next_pid = -1;
+    int highest_priority = -1;
 
     /* Round-robin search */
     for (int i = 0; i < MAX_PROCS; i++) {
         if (proctab[i].state == PR_READY) {
-            if (proctab[i].dyn_priority > best_prio) {
-                best_prio = proctab[i].dyn_priority;
-                next = i;
+            if (proctab[i].dyn_priority > highest_priority) {
+                highest_priority = proctab[i].dyn_priority;
+                next_pid = i;
             }
         }
     }
 
     /* No READY process → idle (PID 0) */
-    if (next == -1)
-        next = 0;
+    if (next_pid == -1)
+        next_pid = 0;
 
-    /* 🔥 RESET PRIORITY OF RUNNING PROCESS */
-    proctab[next].dyn_priority = proctab[next].priority;
+    /* Reset priority of running process */
+    proctab[next_pid].dyn_priority = proctab[next_pid].priority;
 
     /* Already running */
-    if (next == old && old >= 0)
+    if (next_pid == previous_pid && previous_pid >= 0)
         return;
 
     /* Update states */
-    if (old >= 0 && proctab[old].state == PR_CURRENT)
-        proctab[old].state = PR_READY;
+    if (previous_pid >= 0 && proctab[previous_pid].state == PR_CURRENT)
+        proctab[previous_pid].state = PR_READY;
 
-    proctab[next].state = PR_CURRENT;
-    current_pid = next;
-    currpid = &proctab[next];
+    proctab[next_pid].state = PR_CURRENT;
+    current_pid = next_pid;
+    currpid = &proctab[next_pid];
 
     /* First dispatch (bootstrap) */
     if (first_dispatch) {
@@ -227,47 +227,47 @@ void resched(void) {
             "movl %0, %%esp \n"
             "jmp  *%1      \n"
             :
-            : "r"(proctab[next].esp),
-              "r"(proctab[next].entry)
+            : "r"(proctab[next_pid].esp),
+              "r"(proctab[next_pid].entry)
         );
         while (1);
     }
 
     /* Normal context switch */
-    ctxsw(&proctab[old].esp, &proctab[next].esp);
+    ctxsw(&proctab[previous_pid].esp, &proctab[next_pid].esp);
 }
 
 /* -------------------------------------------------- */
 /* Yield                                              */
 /* -------------------------------------------------- */
 
-void yield(void) {
+void process_yield_cpu(void) {
     if (currpid)
         currpid->state = PR_READY;
-    resched();
+    scheduler_reschedule();
 }
 
 /* -------------------------------------------------- */
 /* Process Exit                                       */
 /* -------------------------------------------------- */
 
-void proc_exit(void) {
-    int pid = currpid->pid;
+void process_terminate(void) {
+    int process_pid = currpid->pid;
 
-    proctab[pid].state = PR_TERMINATED;
-    mem_free(proctab[pid].mem);
+    proctab[process_pid].state = PR_TERMINATED;
+    memory_deallocate(proctab[process_pid].mem);
 
-    proctab[pid].mem = NULL;
-    proctab[pid].esp = NULL;
+    proctab[process_pid].mem = NULL;
+    proctab[process_pid].esp = NULL;
 
     serial_puts("Process exited: ");
-    serial_put_int(pid);
+    serial_put_int(process_pid);
     serial_puts("\n");
 
     currpid = NULL;
     current_pid = -1;
 
-    resched();
+    scheduler_reschedule();
     while (1);
 }
 
@@ -275,7 +275,7 @@ void proc_exit(void) {
 /* Process List                                       */
 /* -------------------------------------------------- */
 
-void proc_list(void) {
+void process_list_display(void) {
     serial_puts("PID\tSTATE\n");
     serial_puts("----------------\n");
 
@@ -302,7 +302,7 @@ void proc_list(void) {
 /* Aging Update                                       */
 /* -------------------------------------------------- */
 
-void aging_update(void) {
+void scheduler_update_aging(void) {
     for (int i = 0; i < MAX_PROCS; i++) {
         if (proctab[i].state == PR_READY) {
             proctab[i].dyn_priority++;
