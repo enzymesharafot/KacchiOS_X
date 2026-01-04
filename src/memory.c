@@ -1,7 +1,7 @@
 /* memory.c - Memory Manager Implementation */
 #include "memory.h"
-#include "../string.h"
-#include "../serial.h"
+#include "string.h"
+#include "serial.h"
 
 /* Global memory management structures */
 static uint8_t *stack_ptr = NULL;
@@ -220,4 +220,13 @@ void mem_print_stats(void) {
     serial_puts("Deallocations: ");
     serial_put_uint(mem_stats.num_deallocations);
     serial_puts("\n");
+}
+
+/* XINU-style aliases */
+void *mem_alloc(size_t size) {
+    return heap_alloc(size);
+}
+
+void mem_free(void *ptr) {
+    heap_free(ptr);
 }

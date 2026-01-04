@@ -4,21 +4,22 @@ LD = ld
 AS = as
 
 CFLAGS = -m32 -ffreestanding -O2 -Wall -Wextra -nostdinc \
-         -fno-builtin -fno-stack-protector -I. -Isrc
+         -fno-builtin -fno-stack-protector -Isrc
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-OBJS = boot.o kernel.o serial.o string.o src/memory.o src/process.o src/scheduler.o
+OBJS = src/boot.o src/kernel.o src/serial.o src/string.o \
+       src/memory.o src/process.o src/ctxsw.o
 
 all: kernel.elf
 
 kernel.elf: $(OBJS)
-	$(LD) $(LDFLAGS) -T link.ld -o $@ $^
+	$(LD) $(LDFLAGS) -T src/link.ld -o $@ $^
 
-%.o: %.c
+src/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-%.o: %.S
+src/%.o: src/%.S
 	$(AS) $(ASFLAGS) $< -o $@
 
 run: kernel.elf
@@ -33,6 +34,6 @@ debug: kernel.elf
 	@echo "In another terminal run: gdb -ex 'target remote localhost:1234' -ex 'symbol-file kernel.elf'"
 
 clean:
-	rm -f *.o src/*.o kernel.elf
+	rm -f src/*.o kernel.elf
 
 .PHONY: all run run-vga debug clean

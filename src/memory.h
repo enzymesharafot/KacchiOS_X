@@ -2,7 +2,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "../types.h"
+#include "types.h"
 
 /* Memory block header for heap allocation */
 typedef struct mem_block {
@@ -31,6 +31,10 @@ void *heap_alloc(size_t size);
 
 /* Heap deallocation (free-like) */
 void heap_free(void *ptr);
+
+/* XINU-style aliases */
+void *mem_alloc(size_t size);
+void mem_free(void *ptr);
 
 /* Get memory statistics */
 void mem_get_stats(mem_stats_t *stats);

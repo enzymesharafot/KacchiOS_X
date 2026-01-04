@@ -1,74 +1,59 @@
-/* process.h - Process Manager Interface */
+/* process.h - Process Manager Interface (XINU Style) */
 #ifndef PROCESS_H
 #define PROCESS_H
 
-#include "../types.h"
+#include "types.h"
+
+/* Maximum number of processes */
+#define MAX_PROCS 16
 
 /* Process states */
 typedef enum {
-    PROC_TERMINATED,  /* Process has terminated */
-    PROC_CURRENT,     /* Process is currently running */
-    PROC_READY        /* Process is ready to run */
+    PR_TERMINATED,  /* Process has terminated */
+    PR_CURRENT,     /* Process is currently running */
+    PR_READY,       /* Process is ready to run */
+    PR_SLEEP,       /* Process is sleeping */
+    PR_WAIT         /* Process is waiting for event */
 } proc_state_t;
 
-/* Process priority levels */
-typedef enum {
-    PRIO_HIGH = 0,
-    PRIO_NORMAL = 1,
-    PRIO_LOW = 2
-} proc_priority_t;
-
-/* Process context (saved registers during context switch) */
+/* Process Control Block (PCB) - XINU Style */
 typedef struct {
-    uint32_t esp;     /* Stack pointer */
-    uint32_t ebp;     /* Base pointer */
-    uint32_t ebx;     /* General purpose registers */
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t eflags;  /* CPU flags */
-    uint32_t eip;     /* Instruction pointer */
-} proc_context_t;
-
-/* Process Control Block (PCB) */
-typedef struct {
-    uint32_t pid;                  /* Process ID */
-    char name[32];                 /* Process name */
-    proc_state_t state;            /* Current state */
-    proc_priority_t priority;      /* Process priority */
-    proc_context_t context;        /* Saved context */
-    void *stack_base;              /* Stack base address */
-    size_t stack_size;             /* Stack size */
-    uint32_t time_quantum;         /* Time quantum remaining */
-    uint32_t total_runtime;        /* Total CPU time used */
+    int32_t pid;           /* Process ID */
+    proc_state_t state;    /* Current state */
+    void (*entry)(void);   /* Entry point function */
+    void *stack_base;      /* Stack base address */
+    uint32_t *esp;         /* Saved stack pointer */
+    void *mem;             /* Allocated memory pointer */
+    uint32_t memsz;        /* Memory size */
+    int sleep_ticks;       /* Ticks remaining for sleep */
+    int wait_event;        /* Event ID for wait */
+    int priority;          /* Base priority */
+    int dyn_priority;      /* Dynamic priority (for aging) */
 } pcb_t;
 
-/* Maximum number of processes */
-#define MAX_PROCESSES 16
+/* Global current process pointer */
+extern pcb_t *currpid;
 
-/* Process manager initialization */
+/* Process manager functions */
 void proc_init(void);
+void proc_run(void);
+int32_t proc_create(void (*func)(void));
+void proc_exit(void);
+void proc_list(void);
 
-/* Create a new process */
-int proc_create(const char *name, void (*entry_point)(void), 
-                proc_priority_t priority, size_t stack_size);
+/* Scheduler functions */
+void resched(void);
+void yield(void);
+void aging_update(void);
 
-/* Terminate a process */
-void proc_terminate(uint32_t pid);
+/* Sleep and wait functions */
+void sleep(int ticks);
+void proc_tick(void);
+void wait(int event);
+void wakeup(int event);
 
-/* Get process by PID */
-pcb_t *proc_get(uint32_t pid);
-
-/* Get current running process */
-pcb_t *proc_current(void);
-
-/* Get process count by state */
-int proc_count_by_state(proc_state_t state);
-
-/* Print process table */
-void proc_print_table(void);
-
-/* Utility functions to get process specific data */
-uint32_t proc_get_pid(void);
-const char *proc_state_to_string(proc_state_t state);
+/* Memory allocation (from memory.c) */
+void *mem_alloc(size_t size);
+void mem_free(void *ptr);
 
 #endif

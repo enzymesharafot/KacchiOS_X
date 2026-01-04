@@ -1,103 +1,15 @@
-/* scheduler.c - Scheduler Implementation */
+/* scheduler.c - Scheduler Implementation (XINU Style) */
 #include "scheduler.h"
-#include "process.h"
-#include "../serial.h"
-#include "../string.h"
 
-/* Ready queue - circular queue for each priority level */
-#define READY_QUEUE_SIZE MAX_PROCESSES
+/*
+ * In XINU style, the scheduler is integrated into the process manager.
+ * All scheduling functions (resched, yield, sleep, wait, wakeup) 
+ * are implemented in process.c.
+ * 
+ * This file is kept for compatibility but contains no code.
+ * See process.c for the actual scheduler implementation.
+ */
 
-typedef struct {
-    uint32_t pids[READY_QUEUE_SIZE];
-    int head;
-    int tail;
-    int count;
-} ready_queue_t;
-
-/* Global scheduler state */
-static sched_policy_t current_policy;
-static ready_queue_t ready_queues[3];  /* One for each priority level */
-static uint32_t default_quantum = 100;
-static sched_stats_t sched_stats;
-
-/* External function from process.c to set current PID */
-extern void proc_set_current(uint32_t pid);
-
-/* Initialize a ready queue */
-static void queue_init(ready_queue_t *queue) {
-    queue->head = 0;
-    queue->tail = 0;
-    queue->count = 0;
-    memset(queue->pids, 0, sizeof(queue->pids));
-}
-
-/* Add a PID to a queue */
-static void queue_enqueue(ready_queue_t *queue, uint32_t pid) {
-    if (queue->count >= READY_QUEUE_SIZE) {
-        serial_puts("ERROR: Ready queue full\n");
-        return;
-    }
-    
-    queue->pids[queue->tail] = pid;
-    queue->tail = (queue->tail + 1) % READY_QUEUE_SIZE;
-    queue->count++;
-}
-
-/* Remove and return a PID from a queue */
-static uint32_t queue_dequeue(ready_queue_t *queue) {
-    if (queue->count == 0) {
-        return 0;
-    }
-    
-    uint32_t pid = queue->pids[queue->head];
-    queue->head = (queue->head + 1) % READY_QUEUE_SIZE;
-    queue->count--;
-    return pid;
-}
-
-/* Remove a specific PID from a queue */
-static void queue_remove(ready_queue_t *queue, uint32_t pid) {
-    if (queue->count == 0) {
-        return;
-    }
-    
-    /* Find and remove the PID */
-    int found = -1;
-    for (int i = 0; i < queue->count; i++) {
-        int idx = (queue->head + i) % READY_QUEUE_SIZE;
-        if (queue->pids[idx] == pid) {
-            found = idx;
-            break;
-        }
-    }
-    
-    if (found >= 0) {
-        /* Shift elements to fill the gap */
-        for (int i = 0; i < queue->count - 1; i++) {
-            int curr_idx = (found + i) % READY_QUEUE_SIZE;
-            int next_idx = (found + i + 1) % READY_QUEUE_SIZE;
-            queue->pids[curr_idx] = queue->pids[next_idx];
-        }
-        queue->tail = (queue->tail - 1 + READY_QUEUE_SIZE) % READY_QUEUE_SIZE;
-        queue->count--;
-    }
-}
-
-/* Check if a queue is empty */
-static int queue_is_empty(ready_queue_t *queue) {
-    return queue->count == 0;
-}
-
-/* Initialize the scheduler */
-void sched_init(sched_policy_t policy) {
-    current_policy = policy;
-    
-    /* Initialize ready queues for each priority level */
-    for (int i = 0; i < 3; i++) {
-        queue_init(&ready_queues[i]);
-    }
-    
-    /* Initialize statistics */
     sched_stats.total_context_switches = 0;
     sched_stats.total_scheduler_calls = 0;
     sched_stats.idle_time = 0;
