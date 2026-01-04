@@ -1,6 +1,7 @@
 /* ctxsw.S - Context switch for x86 */
 .text
 .globl ctxsw
+.globl start_first_process
 
 /*
  * ctxsw - context switch between processes
@@ -34,3 +35,24 @@ ctxsw:
     popl    %ebp
 
     ret
+
+/*
+ * start_first_process - Initialize first process execution
+ * void start_first_process(uint32_t *esp);
+ * 
+ * This simulates returning from a context switch for the very first process.
+ */
+start_first_process:
+    cli                         /* Disable interrupts */
+    movl    4(%esp), %ecx       /* Get ESP parameter into ECX */
+    movl    %ecx, %esp          /* Load new stack pointer */
+    
+    /* Restore registers as if returning from ctxsw */
+    popfl                       /* Restore EFLAGS */
+    popl    %edi               /* Restore EDI */
+    popl    %esi               /* Restore ESI */
+    popl    %ebx               /* Restore EBX */
+    popl    %ebp               /* Restore EBP */
+    
+    /* Now ESP points to the function address */
+    ret                        /* Pop and jump to process entry point */

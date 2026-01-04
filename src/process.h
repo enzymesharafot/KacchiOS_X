@@ -34,26 +34,14 @@ typedef struct {
 /* Global current process pointer */
 extern pcb_t *currpid;
 
+/* Global process table (for checking process state) */
+extern pcb_t proctab[MAX_PROCS];
+
 /* Process manager functions */
 void process_manager_initialize(void);
 void process_scheduler_start(void);
 int32_t process_create(void (*func)(void));
 void process_terminate(void);
 void process_list_display(void);
-
-/* Scheduler functions */
-void scheduler_reschedule(void);
-void process_yield_cpu(void);
-void scheduler_update_aging(void);
-
-/* Sleep and wait functions */
-void process_sleep(int tick_count);
-void process_timer_tick(void);
-void process_wait_event(int event_id);
-void process_wakeup_event(int event_id);
-
-/* Memory allocation (from memory.c) */
-void *memory_allocate(size_t size);
-void memory_deallocate(void *ptr);
 
 #endif

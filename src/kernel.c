@@ -7,15 +7,8 @@
 
 #define MAX_INPUT 128
 
-/* Null process - idle process */
-void null_process(void) {
-    serial_puts("[NULL] Null process running (idle)\n");
-    while (1) {
-        /* Idle loop */
-        for (volatile int i = 0; i < 100000; i++);
-        process_yield_cpu();
-    }
-}
+/* External reference to process table */
+extern pcb_t proctab[];
 
 /* Sample process functions */
 void process_a(void) {
@@ -27,12 +20,8 @@ void process_a(void) {
         
         /* Simulate some work */
         for (volatile int j = 0; j < 1000000; j++);
-        
-        /* Yield to other processes */
-        process_yield_cpu();
     }
     serial_puts("[Process A] Completed!\n");
-    process_terminate();
 }
 
 void process_b(void) {
@@ -44,12 +33,8 @@ void process_b(void) {
         
         /* Simulate some work */
         for (volatile int j = 0; j < 1000000; j++);
-        
-        /* Yield to other processes */
-        process_yield_cpu();
     }
     serial_puts("[Process B] Completed!\n");
-    process_terminate();
 }
 
 void process_c(void) {
@@ -61,12 +46,8 @@ void process_c(void) {
         
         /* Simulate some work */
         for (volatile int j = 0; j < 1000000; j++);
-        
-        /* Yield to other processes */
-        process_yield_cpu();
     }
     serial_puts("[Process C] Completed!\n");
-    process_terminate();
 }
 
 /* Test memory allocation */
@@ -102,24 +83,14 @@ void test_memory(void) {
 
 /* Demo the OS features - XINU Style */
 void demo_os(void) {
-    serial_puts("\n=== kacchiOS Demo (XINU Style) ===\n\n");
+    serial_puts("\n=== kacchiOS Demo ===\n\n");
     
     /* Test memory manager */
     test_memory();
     
-    /* Create some processes */
-    serial_puts("\n=== Creating Processes ===\n");
-    
-    /* Create processes - XINU style (simplified) */
-    process_create(process_a);
-    process_create(process_b);
-    process_create(process_c);
-    
-    /* Show process table */
-    serial_puts("\n");
-    process_list_display();
-    
-    serial_puts("\nProcesses created. Type 'run' to start scheduling.\n");
+    serial_puts("\nMemory manager demo completed.\n");
+    serial_puts("Type 'ps' to create and view processes.\n");
+    serial_puts("Type 'run' to execute processes.\n");
 }
 
 void kmain(void) {
@@ -141,9 +112,6 @@ void kmain(void) {
     memory_manager_initialize();
     process_manager_initialize();
     serial_puts("All components initialized successfully!\n");
-    
-    /* Create null process (PID 0) */
-    process_create(null_process);
     
     /* Main loop - interactive shell */
     while (1) {
@@ -188,13 +156,31 @@ void kmain(void) {
                 demo_os();
             }
             else if (strcmp(user_input, "run") == 0) {
-                serial_puts("Starting process scheduler...\n");
-                process_scheduler_start();  /* This will not return */
+                serial_puts("Starting processes...\n");
+                process_scheduler_start();
+                /* Scheduler returns after running all processes */
             }
             else if (strcmp(user_input, "mem") == 0) {
                 serial_puts("Memory manager active (64KB heap)\n");
             }
             else if (strcmp(user_input, "ps") == 0) {
+                /* Check if processes exist, if not create them */
+                int has_processes = 0;
+                for (int i = 0; i < 16; i++) {  /* MAX_PROCS */
+                    if (proctab[i].state != PR_TERMINATED) {
+                        has_processes = 1;
+                        break;
+                    }
+                }
+                
+                if (!has_processes) {
+                    serial_puts("\n=== Creating Processes ===\n");
+                    process_create(process_a);
+                    process_create(process_b);
+                    process_create(process_c);
+                    serial_puts("\n");
+                }
+                
                 process_list_display();
             }
             else if (strcmp(user_input, "clear") == 0) {
@@ -204,7 +190,7 @@ void kmain(void) {
             }
             else if (strcmp(user_input, "about") == 0) {
                 serial_puts("\nkacchiOS - Educational Bare-metal OS\n");
-                serial_puts("Version: 3.0 (XINU Style)\n");
+                serial_puts("Version: 3.0\n");
                 serial_puts("Features:\n");
                 serial_puts("  - Memory Manager (Heap allocation)\n");
                 serial_puts("  - Process Manager \n");
